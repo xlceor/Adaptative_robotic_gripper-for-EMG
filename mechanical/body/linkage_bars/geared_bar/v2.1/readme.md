@@ -10,6 +10,6 @@ The design consist on 2 bars, one per each side, and a gear designed for the ser
 PLA or PETG, depending on testing
 
 ## Comments of the version
-This version of the project is the first one to use gears. The geared bars consist on the gears, and the shape of the support gear was duplicate to mantain simplicity. Now, the real-life testing shows that the shape are limiting the maximum open/closing of the gripper, specially on opening.
+The real-life testing shows that the shape are limiting the maximum open/closing of the gripper, specially on opening. So, in V2 the shape was designed to provide the maximum grade of freedom. This version solves minor problems, like the width of the screw-holes.
 ## Next Steps
-Adjust the design to add more freedom.
+Keep testing.
