@@ -15,6 +15,12 @@ Servo servo2;
 #define SERVO1_PIN 15
 #define SERVO2_PIN 16
 
+#define offLed 17
+#define onLed 18
+
+bool prevStat = false;
+
+
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   if (type == WS_EVT_DATA) {
     JsonDocument doc; 
@@ -62,13 +68,24 @@ void setup() {
   
   servo1.attach(SERVO1_PIN, 500, 2400); 
   servo2.attach(SERVO2_PIN, 500, 2400);
+  
+  pinMode(offLed, OUTPUT);
+  pinMode(onLed, OUTPUT);
+
+  
 
   WiFi.begin(ssid, password);
   Serial.print("Connecting");
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    digitalWrite(offLed, prevStat);
+    prevStat = !prevStat;
   }
+
+    digitalWrite(offLed, LOW);
+    digitalWrite(onLed, HIGH);
 
     Serial.println("\nConected!");
     Serial.print("IP: ");
