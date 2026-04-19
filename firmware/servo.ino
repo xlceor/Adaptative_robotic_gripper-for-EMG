@@ -2,42 +2,25 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
+#include <math.h>
 
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "ESP32-Control";
+const char* password = "12345678";
 
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+AsyncEventSource events("/events");
 
 Servo servo1;
 Servo servo2;
 
 #define SERVO1_PIN 15
 #define SERVO2_PIN 16
-
 #define offLed 17
 #define onLed 18
 
-bool prevStat = false;
+volatile float targetAngle  = 90.0f;
+float          currentAngle = 90.0f;
 
-
-void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  if (type == WS_EVT_DATA) {
-    JsonDocument doc; 
-    DeserializationError error = deserializeJson(doc, data, len);
-
-    if (error) return;
-
-  if (doc.containsKey("servo")) {
-    int valorRecibido = doc["servo"].as<int>(); 
-    
-    int angle = constrain(valorRecibido, 0, 180);
-    
-    servo1.write(angle);
-    servo2.write(180 - angle);
-  }
-  }
-}
 
 float fakeTemp() {
   static float value = 20.0;
@@ -58,7 +41,9 @@ int fakeADC() {
 }
 
 void setup() {
+  // -Config-
   Serial.begin(115200);
+  Serial.print("[system] Booting...");
 
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
@@ -72,43 +57,87 @@ void setup() {
   pinMode(offLed, OUTPUT);
   pinMode(onLed, OUTPUT);
 
-  
+  // -SoftAP-
+  Serial.print("[Wifi] Connecting...");
+  WiFi.softAP(ssid, password);
 
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting");
+  IPAddress IP = WiFi.softAPIP();
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-    digitalWrite(offLed, prevStat);
-    prevStat = !prevStat;
+  Serial.println("\n [Wifi] Conected!");
+  Serial.print("[Wifi] Server IP: ");
+  Serial.println(IP);
+
+  digitalWrite(offLed, LOW);
+  digitalWrite(onLed, HIGH);
+
+  // -CORS-
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // -SSE-
+  events.onConnect([](AsyncEventSourceClient* client) {
+    Serial.printf("[SSE] Client connected, id=%u\n", client->lastId());
+    client->send("connected", "status", millis());
+  });
+
+  server.addHandler(&events);
+
+  server.on("/servo", HTTP_POST,
+  [](AsyncWebServerRequest* request){},
+  nullptr,
+  [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+
+    StaticJsonDocument<64> doc;
+
+    if (deserializeJson(doc, data, len)) {
+      request->send(400, "application/json", "{\"error\":\"invalid JSON\"}");
+      return;
+    }
+
+    if(doc.containsKey("servo")){
+      targetAngle = constrain((float)doc["servo"], 0.0f, 180.0f);
+      Serial.printf("[Servo] -> %.1f\n", targetAngle);
+    }
+
+    request->send(200, "application/json", "{\"ok\":true}");
   }
+);
+  
+  server.on("/servo", HTTP_OPTIONS, [](AsyncWebServerRequest* request) {
+    request->send(204);
+  });
 
-    digitalWrite(offLed, LOW);
-    digitalWrite(onLed, HIGH);
-
-    Serial.println("\nConected!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-
-  ws.onEvent(onWsEvent);
-  server.addHandler(&ws);
   server.begin();
 }
 
 void loop() {
-  ws.cleanupClients();
-
   static unsigned long last = 0;
-  if (millis() - last > 1000) {
+  if (millis() - last > 20) {
     last = millis();
 
-    JsonDocument doc;
+    float diff = targetAngle - currentAngle;
+
+    if(fabs(diff) > 0.5f)
+      currentAngle += diff * 0.15f;
+    else
+      currentAngle = targetAngle;
+
+    servo1.write((int)currentAngle);
+    servo2.write(180 - (int)currentAngle);
+  }
+
+  static unsigned long lastTelemetry = 0;
+  if (millis() - lastTelemetry > 1000) {
+    lastTelemetry = millis();
+
+    StaticJsonDocument<256> doc;
     doc["temp"] = fakeTemp();
-    doc["adc"] = fakeADC();
+    doc["adc"]  = fakeADC();
 
     String output;
     serializeJson(doc, output);
-    ws.textAll(output);
+
+    events.send(output.c_str(), "telemetry", millis());
   }
 }
