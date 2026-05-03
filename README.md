@@ -54,6 +54,33 @@ The result is a functional robotic gripper system built through iterative engine
 - Geometry optimized for full range of motion  
 
 ---
+### 💻 Control system
+
+#### Control Layer
+Handles smooth motion interpolation between target and current positions:
+- Real-time servo control loop (~20 ms)
+- Dual-servo synchronized movement
+
+#### Communication Layer
+Provides external control and monitoring:
+- REST API endpoints (`/servo`, `/ping`, `/demo`)
+- WiFi Access Point mode
+- Server-Sent Events (SSE) for real-time streaming
+
+#### Telemetry Layer
+Streams system diagnostics to the UI:
+- Simulated temperature, voltage, load, vibration, ADC
+- Designed to emulate real sensor behavior
+
+#### State Layer
+Maintains and broadcasts system state:
+- Target vs current angle tracking
+- Real-time synchronization with UI
+
+#### UI Integration
+Designed for real-time dashboard interaction:
+- Low-latency feedback via SSE
+- Compatible with advanced HUD-style interfaces
 
 ### 🔩 Manufacturing
 
