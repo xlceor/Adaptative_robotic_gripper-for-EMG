@@ -93,7 +93,7 @@ Designed for real-time dashboard interaction:
 
 ### 🔌 Electronics
 
-- Arduino-based control  
+- ESP32-based control  
 - Servo motors (MG996R)  
 - Power system:
   - Dual 18650 batteries  
